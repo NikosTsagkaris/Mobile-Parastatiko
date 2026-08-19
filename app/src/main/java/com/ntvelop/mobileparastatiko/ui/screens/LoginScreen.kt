@@ -159,7 +159,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                     com.ntvelop.mobileparastatiko.api.MyDataClient.sessionManager = sessionManager
                     
                     // Test connection
-                    com.ntvelop.mobileparastatiko.api.MyDataClient.api.requestDocs("RequestDocs", 0L).enqueue(object : retrofit2.Callback<com.ntvelop.mobileparastatiko.api.RequestedInvoicesDoc> {
+                    com.ntvelop.mobileparastatiko.api.MyDataClient.api.requestDocs(mark = 0L).enqueue(object : retrofit2.Callback<com.ntvelop.mobileparastatiko.api.RequestedInvoicesDoc> {
                         override fun onResponse(call: retrofit2.Call<com.ntvelop.mobileparastatiko.api.RequestedInvoicesDoc>, response: retrofit2.Response<com.ntvelop.mobileparastatiko.api.RequestedInvoicesDoc>) {
                             isLoading = false
                             val code = response.code()

@@ -1,18 +1,23 @@
 package com.ntvelop.mobileparastatiko.api
 
 import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody
+import okhttp3.ResponseBody
 import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Converter
 import retrofit2.Retrofit
 import retrofit2.converter.simplexml.SimpleXmlConverterFactory
+import java.lang.reflect.Type
 import java.util.concurrent.TimeUnit
 
 object MyDataClient {
 
-    private const val PROD_URL = "https://mydatapi.aade.gr/"
+    private const val PROD_URL = "https://mydatapi.aade.gr/myDATA/"
     private const val DEV_URL = "https://mydataapidev.aade.gr/"
 
-    private fun getBaseUrl(): String {
+    fun getBaseUrl(): String {
         return if (sessionManager?.isSandboxMode() != false) DEV_URL else PROD_URL
     }
 
@@ -26,13 +31,12 @@ object MyDataClient {
 
         val requestBuilder = original.newBuilder()
             .header("aade-user-id", userId)
-            .header("Ocp-Apim-Subscription-Key", subKey)
-            .header("Accept", "application/xml")
-            .header("Content-Type", "application/xml")
+            .header("ocp-apim-subscription-key", subKey)
+            .header("Content-Type", "text/xml; charset=utf-8")
             .method(original.method, original.body)
 
         val request = requestBuilder.build()
-            chain.proceed(request)
+        chain.proceed(request)
     }
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
@@ -50,6 +54,36 @@ object MyDataClient {
 
     private var retrofitInstance: Retrofit? = null
 
+    /**
+     * Converter factory to pass raw XML strings seamlessly
+     */
+    private val rawStringConverterFactory = object : Converter.Factory() {
+        override fun requestBodyConverter(
+            type: Type,
+            parameterAnnotations: Array<out Annotation>,
+            methodAnnotations: Array<out Annotation>,
+            retrofit: Retrofit
+        ): Converter<*, RequestBody>? {
+            if (type == String::class.java) {
+                return Converter<String, RequestBody> { value ->
+                    RequestBody.create("text/xml; charset=utf-8".toMediaType(), value)
+                }
+            }
+            return null
+        }
+
+        override fun responseBodyConverter(
+            type: Type,
+            annotations: Array<out Annotation>,
+            retrofit: Retrofit
+        ): Converter<ResponseBody, *>? {
+            if (type == String::class.java) {
+                return Converter<ResponseBody, String> { value -> value.string() }
+            }
+            return null
+        }
+    }
+
     fun getRetrofit(): Retrofit {
         val currentInstance = retrofitInstance
         if (currentInstance != null) return currentInstance
@@ -57,9 +91,10 @@ object MyDataClient {
         val newInstance = Retrofit.Builder()
             .baseUrl(getBaseUrl())
             .client(okHttpClient)
-            .addConverterFactory(SimpleXmlConverterFactory.create())
+            .addConverterFactory(rawStringConverterFactory)
+            .addConverterFactory(SimpleXmlConverterFactory.createNonStrict())
             .build()
-        
+
         retrofitInstance = newInstance
         return newInstance
     }
@@ -68,6 +103,6 @@ object MyDataClient {
         retrofitInstance = null
     }
 
-    val api: MyDataApi 
+    val api: MyDataApi
         get() = getRetrofit().create(MyDataApi::class.java)
 }

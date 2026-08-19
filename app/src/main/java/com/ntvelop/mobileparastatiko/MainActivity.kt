@@ -43,6 +43,7 @@ import com.ntvelop.mobileparastatiko.api.GroupQRCodeRequest
 import com.ntvelop.mobileparastatiko.api.QrUrlsWrapper
 import com.ntvelop.mobileparastatiko.api.CancelDeliveryNoteRequest
 import com.ntvelop.mobileparastatiko.api.SessionManager
+import com.ntvelop.mobileparastatiko.xml.MyDataXmlSerializer
 import com.ntvelop.mobileparastatiko.ui.scanner.QRScannerScreen
 import com.ntvelop.mobileparastatiko.ui.screens.LoginScreen
 import com.ntvelop.mobileparastatiko.ui.screens.SplashScreen
@@ -72,6 +73,7 @@ class MainActivity : ComponentActivity() {
                         composable("splash") { SplashScreen { isLoggedIn -> navController.navigate(if (isLoggedIn) "main" else "login") { popUpTo("splash") { inclusive = true } } } }
                         composable("login") { LoginScreen { navController.navigate("main") { popUpTo("login") { inclusive = true } } } }
                         composable("main") { MainDashboardScreen(navController, sessionManager) }
+                        composable("delivery") { com.ntvelop.mobileparastatiko.ui.screens.DeliveryNoteScreen(sessionManager) { navController.popBackStack() } }
                     }
                 }
             }
@@ -145,6 +147,12 @@ fun MainDashboardScreen(navController: NavController, sessionManager: SessionMan
 
         Button(onClick = { showScanner = true }, modifier = Modifier.fillMaxWidth().height(60.dp), colors = ButtonDefaults.buttonColors(containerColor = NeonGreen, contentColor = Color.Black)) {
             Text("ΣΑΡΩΣΗ QR", fontWeight = FontWeight.Bold)
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Button(onClick = { navController.navigate("delivery") }, modifier = Modifier.fillMaxWidth().height(52.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
+            Text("ΕΚΔΟΣΗ ΨΗΦΙΑΚΟΥ ΔΕΛΤΙΟΥ (NEW DELIVERY NOTE)", fontWeight = FontWeight.Bold)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -412,7 +420,7 @@ private fun fetchStatusAdaptiveWithFishing(
         2 -> { // 2. Attempt 2: by Mark (Direct API)
             if (mark == null) { fetchStatusAdaptiveWithFishing(qrUrl, null, 3, log, onUI, onRoleUpdate, onResult); return }
             onUI("Ανάκτηση (by Mark)...")
-            MyDataClient.api.getDeliveryNoteStatus("GetDeliveryNoteStatus", null, mark.toString()).enqueue(object : Callback<GetDeliveryStatusResponse> {
+            MyDataClient.api.getDeliveryNoteStatus(mark = mark.toString()).enqueue(object : Callback<GetDeliveryStatusResponse> {
                 override fun onResponse(call: Call<GetDeliveryStatusResponse>, response: Response<GetDeliveryStatusResponse>) {
                     val b = response.body(); val r = b?.responses?.firstOrNull(); val e = b?.errors ?: r?.errors
                     val errMsg = e?.errorList?.joinToString { it.message } ?: ""
@@ -435,7 +443,7 @@ private fun fetchStatusAdaptiveWithFishing(
         }
         3 -> { // 3. Attempt 3: by QR URL (Ph. 2 API)
             onUI("Ανάκτηση (by QR URL)...")
-            MyDataClient.api.getDeliveryNoteStatus("GetDeliveryNoteStatus", qrUrl, null).enqueue(object : Callback<GetDeliveryStatusResponse> {
+            MyDataClient.api.getDeliveryNoteStatus(qrUrl = qrUrl).enqueue(object : Callback<GetDeliveryStatusResponse> {
                 override fun onResponse(call: Call<GetDeliveryStatusResponse>, response: Response<GetDeliveryStatusResponse>) {
                     val b = response.body(); val r = b?.responses?.firstOrNull(); val e = b?.errors ?: r?.errors
                     val errMsg = e?.errorList?.joinToString { it.message } ?: ""
@@ -459,11 +467,10 @@ private fun fetchStatusAdaptiveWithFishing(
         4 -> { // 4. Attempt 4: Phase 1 RequestDocs (Final Body)
             if (mark == null) { onUI("⚠️ Δεν βρέθηκε στην AADE"); onResult("UNKNOWN", null); return }
             onUI("Αναζήτηση Παραστατικού (AADE)...")
-            val endpoint = if(isSandbox) "RequestDocs" else "myDATA/RequestDocs"
-            MyDataClient.api.requestDocs(endpoint, mark).enqueue(object : Callback<RequestedInvoicesDoc> {
+            MyDataClient.api.requestDocs(mark = mark).enqueue(object : Callback<RequestedInvoicesDoc> {
                 override fun onResponse(call: Call<RequestedInvoicesDoc>, response: Response<RequestedInvoicesDoc>) {
                     val inv = response.body()?.invoicesDoc?.invoices?.firstOrNull()
-                    val s = inv?.status ?: inv?.invoiceDeliveryStatus
+                    val s = inv?.invoiceDeliveryStatus
                     if (s != null) onResult(s, inv?.mark ?: mark)
                     else onResult(null, mark)
                 }
@@ -480,8 +487,8 @@ private fun extractHash(url: String): String? {
 
 private fun executeRegisterTransfer(qrUrl: String, vehicleNo: String, type: Int, onLog: (String) -> Unit, onResult: (Boolean, String?, Long?) -> Unit) {
     val req = RegisterTransferRequest(qrUrl, TransportDetailRequest(vehicleNo, type, MyDataClient.sessionManager?.getVat()))
-    val url = if (MyDataClient.sessionManager?.isSandboxMode() == true) "RegisterTransfer" else "myDATA/RegisterTransfer"
-    MyDataClient.api.registerTransfer(url, req).enqueue(object : Callback<ResponseDoc> {
+    val xml = MyDataXmlSerializer.serializeRegisterTransfer(req)
+    MyDataClient.api.registerTransfer(xml).enqueue(object : Callback<ResponseDoc> {
         override fun onResponse(call: Call<ResponseDoc>, response: Response<ResponseDoc>) {
             if (response.isSuccessful) {
                 val r = response.body()?.responses?.firstOrNull()
@@ -498,8 +505,8 @@ private fun executeRegisterTransfer(qrUrl: String, vehicleNo: String, type: Int,
 
 private fun executeConfirmDeliveryOutcome(qrUrl: String, outcome: String, onResult: (Boolean, String?) -> Unit) {
     val req = ConfirmDeliveryOutcomeRequest(qrUrl, outcome)
-    val url = if (MyDataClient.sessionManager?.isSandboxMode() == true) "ConfirmDeliveryOutcome" else "myDATA/ConfirmDeliveryOutcome"
-    MyDataClient.api.confirmDeliveryOutcome(url, req).enqueue(object : Callback<ResponseDoc> {
+    val xml = MyDataXmlSerializer.serializeConfirmDeliveryOutcome(req)
+    MyDataClient.api.confirmDeliveryOutcome(xml).enqueue(object : Callback<ResponseDoc> {
         override fun onResponse(call: Call<ResponseDoc>, response: Response<ResponseDoc>) {
              if (response.isSuccessful) {
                  val r = response.body()?.responses?.firstOrNull()
@@ -513,8 +520,8 @@ private fun executeConfirmDeliveryOutcome(qrUrl: String, outcome: String, onResu
 
 private fun executeRejectDeliveryNote(qrUrl: String, reason: String?, onResult: (Boolean, String?) -> Unit) {
     val req = RejectDeliveryNoteRequest(qrUrl, reason?.ifBlank { null })
-    val url = if (MyDataClient.sessionManager?.isSandboxMode() == true) "RejectDeliveryNote" else "myDATA/RejectDeliveryNote"
-    MyDataClient.api.rejectDeliveryNote(url, req).enqueue(object : Callback<ResponseDoc> {
+    val xml = MyDataXmlSerializer.serializeRejectDeliveryNote(req)
+    MyDataClient.api.rejectDeliveryNote(xml).enqueue(object : Callback<ResponseDoc> {
         override fun onResponse(call: Call<ResponseDoc>, response: Response<ResponseDoc>) {
              if (response.isSuccessful) {
                  val r = response.body()?.responses?.firstOrNull()
@@ -528,8 +535,8 @@ private fun executeRejectDeliveryNote(qrUrl: String, reason: String?, onResult: 
 
 private fun executeGenerateGroupQRCode(qrUrls: List<String>, onResult: (Boolean, String?, String?) -> Unit) {
     val req = GroupQRCodeRequest(QrUrlsWrapper(qrUrls))
-    val url = if (MyDataClient.sessionManager?.isSandboxMode() == true) "GenerateGroupQRCode" else "myDATA/GenerateGroupQRCode"
-    MyDataClient.api.generateGroupQRCode(url, req).enqueue(object : Callback<ResponseDoc> {
+    val xml = MyDataXmlSerializer.serializeGroupQRCode(req)
+    MyDataClient.api.generateGroupQRCode(xml).enqueue(object : Callback<ResponseDoc> {
         override fun onResponse(call: Call<ResponseDoc>, response: Response<ResponseDoc>) {
              if (response.isSuccessful) {
                  val r = response.body()?.responses?.firstOrNull()
@@ -542,10 +549,9 @@ private fun executeGenerateGroupQRCode(qrUrls: List<String>, onResult: (Boolean,
 }
 
 private fun executeCancelTransfer(qrUrl: String, onResult: (Boolean, String?) -> Unit) {
-    val isSandbox = MyDataClient.sessionManager?.isSandboxMode() == true
-    val endpoint = if(isSandbox) "CancelDeliveryNote" else "myDATA/CancelDeliveryNote"
     val req = CancelDeliveryNoteRequest(qrUrl, "User cancellation via mobile")
-    MyDataClient.api.cancelDeliveryNote(endpoint, req).enqueue(object : Callback<ResponseDoc> {
+    val xml = MyDataXmlSerializer.serializeCancelDeliveryNote(req)
+    MyDataClient.api.cancelDeliveryNote(xml).enqueue(object : Callback<ResponseDoc> {
         override fun onResponse(call: Call<ResponseDoc>, response: Response<ResponseDoc>) {
              val r = response.body()?.responses?.firstOrNull()
              if (r?.statusCode == "Success") onResult(true, "Success")

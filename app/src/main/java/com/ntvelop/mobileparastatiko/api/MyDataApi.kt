@@ -1,75 +1,115 @@
 package com.ntvelop.mobileparastatiko.api
 
 import retrofit2.Call
-import retrofit2.http.Body
-import retrofit2.http.GET
-import retrofit2.http.POST
-import retrofit2.http.Query
-import retrofit2.http.Url
+import retrofit2.http.*
 
 /**
- * Phase 2 - Digital Delivery Note Endpoints
+ * myDATA REST API v2.0.2 & Phase B Digital Delivery Note Endpoints
  */
 interface MyDataApi {
 
     /**
-     * ERP Methods
-     */
-
-    // 1. RegisterTransfer: Μέθοδος για την έναρξη και καταγραφή της διακίνησης.
-    @POST
-    fun registerTransfer(@Url url: String, @Body payload: RegisterTransferRequest): Call<ResponseDoc>
-
-    // 2. ConfirmDeliveryOutcome: Μέθοδος για την επιβεβαίωση παράδοσης ή δήλωσης απόρριψης.
-    @POST
-    fun confirmDeliveryOutcome(@Url url: String, @Body payload: ConfirmDeliveryOutcomeRequest): Call<ResponseDoc>
-
-    // 3. RejectDeliveryNote: Μέθοδος ολικής απόρριψης διακίνησης από το λήπτη
-    @POST
-    fun rejectDeliveryNote(@Url url: String, @Body payload: RejectDeliveryNoteRequest): Call<ResponseDoc>
-
-    // 3b. CancelDeliveryNote: Μέθοδος ολικής ακύρωσης διακίνησης από τον εκδότη (Phase 2)
-    @POST
-    fun cancelDeliveryNote(@Url url: String, @Body payload: CancelDeliveryNoteRequest): Call<ResponseDoc>
-
-    // 4. GetDeliveryNoteStatus: Μέθοδος ανάκτησης της τρέχουσας κατάστασης και του ιστορικού διακίνησης.
-    @GET
-    fun getDeliveryNoteStatus(
-        @Url url: String, 
-        @Query("qrUrl") qrUrl: String? = null,
-        @Query("invoiceMark") invoiceMark: String? = null
-    ): Call<GetDeliveryStatusResponse>
-
-    // 5. GenerateGroupQRCode: Δυνατότητα ομαδικής σάρωσης για μαζικές αποστολές.
-    @POST
-    fun generateGroupQRCode(@Url url: String, @Body payload: GroupQRCodeRequest): Call<ResponseDoc>
-    
-    // 6. GetGroupQRDetails: Ανάκτηση λεπτομερειών ομαδικής σάρωσης.
-    @GET
-    fun getGroupQRDetails(@Url url: String, @Query("qrUrl") qrUrl: String): Call<RequestGroupQRDetailsResponse>
-
-    /**
-     * Older basic methods with Phase 2 updates (invoiceDeliveryStatus, qrUrl added to responses)
+     * 1. Invoice Submission
      */
     @POST("SendInvoices")
-    fun sendInvoices(@Body payload: String): Call<ResponseDoc>
-
-    @POST("CancelInvoice")
-    fun cancelInvoice(@Query("mark") mark: Long): Call<ResponseDoc>
-
-    @GET
-    fun requestDocs(@Url url: String, @Query("mark") mark: Long): Call<RequestedInvoicesDoc>
-
-    @GET
-    fun requestTransmittedDocs(@Url url: String, @Query("mark") mark: Long): Call<RequestedInvoicesDoc>
-
+    @Headers("Content-Type: text/xml; charset=utf-8")
+    fun sendInvoices(@Body xmlBody: String): Call<ResponseDoc>
 
     /**
-     * PROVIDER Methods
+     * 2. Income Classification
      */
-    @POST("myDATAProvider/SendInvoices")
-    fun providerSendInvoices(@Body payload: String): retrofit2.Call<ResponseDoc>
+    @POST("SendIncomeClassification")
+    @Headers("Content-Type: text/xml; charset=utf-8")
+    fun sendIncomeClassification(@Body xmlBody: String): Call<ResponseDoc>
 
-    @GET("myDATAProvider/RequestTransmittedDocs")
-    fun providerRequestTransmittedDocs(@Query("mark") mark: Long): retrofit2.Call<okhttp3.ResponseBody>
+    /**
+     * 3. Expenses Classification
+     */
+    @POST("SendExpensesClassification")
+    @Headers("Content-Type: text/xml; charset=utf-8")
+    fun sendExpensesClassification(@Body xmlBody: String): Call<ResponseDoc>
+
+    /**
+     * 4. Payment Method Reporting
+     */
+    @POST("SendPaymentsMethod")
+    @Headers("Content-Type: text/xml; charset=utf-8")
+    fun sendPaymentsMethod(@Body xmlBody: String): Call<ResponseDoc>
+
+    /**
+     * 5. Invoice Cancellation
+     */
+    @POST("CancelInvoice")
+    fun cancelInvoice(
+        @Query("mark") mark: Long,
+        @Query("entityVatNumber") entityVatNumber: String? = null
+    ): Call<ResponseDoc>
+
+    /**
+     * 6. Data Retrieval (Receiver)
+     */
+    @GET("RequestDocs")
+    fun requestDocs(
+        @Query("mark") mark: Long? = null,
+        @Query("dateFrom") dateFrom: String? = null,
+        @Query("dateTo") dateTo: String? = null,
+        @Query("nextPartitionKey") nextPartitionKey: String? = null,
+        @Query("nextRowKey") nextRowKey: String? = null
+    ): Call<RequestedInvoicesDoc>
+
+    /**
+     * 7. Data Retrieval (Transmitter)
+     */
+    @GET("RequestTransmittedDocs")
+    fun requestTransmittedDocs(
+        @Query("mark") mark: Long? = null,
+        @Query("dateFrom") dateFrom: String? = null,
+        @Query("dateTo") dateTo: String? = null,
+        @Query("nextPartitionKey") nextPartitionKey: String? = null,
+        @Query("nextRowKey") nextRowKey: String? = null
+    ): Call<RequestedInvoicesDoc>
+
+    /**
+     * 8. Digital Delivery Note Lifecycle Endpoints (Phase B)
+     */
+
+    // RegisterTransfer: Declaration of transport dispatch or transshipment by carrier/issuer
+    @POST("RegisterTransfer")
+    @Headers("Content-Type: text/xml; charset=utf-8")
+    fun registerTransfer(@Body xmlBody: String): Call<ResponseDoc>
+
+    // ConfirmDeliveryOutcome: Confirmation of delivery (FULL, PARTIAL, NONE)
+    @POST("ConfirmDeliveryOutcome")
+    @Headers("Content-Type: text/xml; charset=utf-8")
+    fun confirmDeliveryOutcome(@Body xmlBody: String): Call<ResponseDoc>
+
+    // RejectDeliveryNote: Full rejection of delivery note by recipient
+    @POST("RejectDeliveryNote")
+    @Headers("Content-Type: text/xml; charset=utf-8")
+    fun rejectDeliveryNote(@Body xmlBody: String): Call<ResponseDoc>
+
+    // CancelDeliveryNote: Issuer cancellation prior to InTransit
+    @POST("CancelDeliveryNote")
+    @Headers("Content-Type: text/xml; charset=utf-8")
+    fun cancelDeliveryNote(@Body xmlBody: String): Call<ResponseDoc>
+
+    // GetDeliveryNoteStatus: Retrieval of full dispatch history and status
+    @GET("GetDeliveryNoteStatus")
+    fun getDeliveryNoteStatus(
+        @Query("mark") mark: String? = null,
+        @Query("qrUrl") qrUrl: String? = null
+    ): Call<GetDeliveryStatusResponse>
+
+    // GenerateGroupQRCode & RequestGroupQRDetails
+    @POST("GenerateGroupQRCode")
+    @Headers("Content-Type: text/xml; charset=utf-8")
+    fun generateGroupQRCode(@Body xmlBody: String): Call<ResponseDoc>
+
+    @GET("RequestGroupQRDetails")
+    fun requestGroupQRDetails(@Query("qrUrl") qrUrl: String): Call<RequestGroupQRDetailsResponse>
+
+    // ConfirmDeliveryReturn: Declaration of returned goods to issuer
+    @POST("ConfirmDeliveryReturn")
+    @Headers("Content-Type: text/xml; charset=utf-8")
+    fun confirmDeliveryReturn(@Body xmlBody: String): Call<ResponseDoc>
 }
