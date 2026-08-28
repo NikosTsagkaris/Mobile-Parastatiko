@@ -551,6 +551,28 @@ data class DomainValidationResult(
  */
 object MyDataValidator {
 
+    /**
+     * Επίσημος Αλγόριθμος Modulo 11 της ΑΑΔΕ για Ελληνικά ΑΦΜ
+     */
+    fun isValidGreekVat(vat: String?): Boolean {
+        if (vat.isNullOrBlank()) return false
+        val cleanVat = vat.trim()
+        if (!cleanVat.matches(Regex("^[0-9]{9}$"))) return false
+        if (cleanVat == "000000000") return false
+
+        var sum = 0
+        for (i in 0 until 8) {
+            val digit = cleanVat[i].digitToInt()
+            val weight = 1 shl (8 - i) // 2^(8-i)
+            sum += digit * weight
+        }
+
+        val remainder = sum % 11
+        val checkDigit = if (remainder == 10) 0 else remainder
+
+        return checkDigit == cleanVat[8].digitToInt()
+    }
+
     fun validateInvoice(invoice: AadeBookInvoiceType): DomainValidationResult {
         val errors = mutableListOf<String>()
 
@@ -572,10 +594,18 @@ object MyDataValidator {
             errors.add("Rule 3.1: 'exchangeRate' is mandatory when currency is not EUR.")
         }
 
-        // 2. Issuer VAT validation
+        // 2. Issuer & Counterpart VAT validation (Modulo 11)
         invoice.issuer?.let { party ->
             if (party.vatNumber.isBlank()) {
                 errors.add("Rule 3.2: Issuer VAT Number is mandatory.")
+            } else if (party.country.equals("GR", ignoreCase = true) && !isValidGreekVat(party.vatNumber)) {
+                errors.add("Rule 3.2: Issuer VAT (${party.vatNumber}) is mathematically invalid (Modulo 11).")
+            }
+        }
+
+        invoice.counterpart?.let { party ->
+            if (party.vatNumber.isNotBlank() && party.country.equals("GR", ignoreCase = true) && !isValidGreekVat(party.vatNumber)) {
+                errors.add("Rule 3.2: Counterpart VAT (${party.vatNumber}) is mathematically invalid (Modulo 11).")
             }
         }
 
