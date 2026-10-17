@@ -12,8 +12,8 @@ android {
         applicationId = "com.ntvelop.mobileparastatiko"
         minSdk = 30
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.2.4"
+        versionCode = 4
+        versionName = "1.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
