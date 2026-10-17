@@ -87,4 +87,60 @@ class MyDataXmlSerializerTest {
         assertEquals(400000123456789L, first.invoiceMark)
         assertEquals("Success", first.statusCode)
     }
+
+    @Test
+    fun testSimpleXmlDeserializeRequestedDoc_WithInvoiceDetails_DoesNotThrowReadOnlyError() {
+        val sampleRequestedDocXml = """<?xml version="1.0" encoding="UTF-8"?>
+<RequestedDoc xmlns="http://www.aade.gr/myDATA/invoice/v1.0">
+  <invoicesDoc>
+    <invoice>
+      <uid>ABC123456789</uid>
+      <mark>400000123456789</mark>
+      <issuer>
+        <vatNumber>094000000</vatNumber>
+        <country>GR</country>
+        <branch>0</branch>
+      </issuer>
+      <counterpart>
+        <vatNumber>999999999</vatNumber>
+        <country>GR</country>
+        <branch>0</branch>
+      </counterpart>
+      <invoiceHeader>
+        <series>A</series>
+        <aa>101</aa>
+        <issueDate>2026-10-17</issueDate>
+        <invoiceType>9.3</invoiceType>
+      </invoiceHeader>
+      <invoiceDetails>
+        <lineNumber>1</lineNumber>
+        <netValue>100.00</netValue>
+        <vatCategory>1</vatCategory>
+        <vatAmount>24.00</vatAmount>
+      </invoiceDetails>
+      <invoiceDetails>
+        <lineNumber>2</lineNumber>
+        <netValue>50.00</netValue>
+        <vatCategory>1</vatCategory>
+        <vatAmount>12.00</vatAmount>
+      </invoiceDetails>
+      <invoiceSummary>
+        <totalNetValue>150.00</totalNetValue>
+        <totalVatAmount>36.00</totalVatAmount>
+        <totalGrossValue>186.00</totalGrossValue>
+      </invoiceSummary>
+    </invoice>
+  </invoicesDoc>
+</RequestedDoc>"""
+
+        val persister = org.simpleframework.xml.core.Persister()
+        val parsed = persister.read(RequestedInvoicesDoc::class.java, sampleRequestedDocXml, false)
+
+        assertNotNull(parsed.invoicesDoc)
+        assertEquals(1, parsed.invoicesDoc?.invoices?.size)
+        val inv = parsed.invoicesDoc!!.invoices!![0]
+        assertEquals(400000123456789L, inv.mark)
+        assertEquals(2, inv.invoiceDetails.size)
+        assertEquals(100.00, inv.invoiceDetails[0].netValue, 0.001)
+    }
 }

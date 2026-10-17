@@ -63,9 +63,9 @@ data class AddressType(
  */
 @Root(name = "EntityType", strict = false)
 data class EntityType(
-    @field:Element(name = "type", required = true)
+    @field:Element(name = "type", required = false)
     var type: Int = 1, // 1: Tax Rep, 2: Intermediary, 3: Transporter, 4: Goods Recipient, 5: Sender/Seller, 6: Other
-    @field:Element(name = "entityData", required = true)
+    @field:Element(name = "entityData", required = false)
     var entityData: PartyType = PartyType()
 )
 
@@ -74,13 +74,13 @@ data class EntityType(
  */
 @Root(name = "PartyType", strict = false)
 data class PartyType(
-    @field:Element(name = "vatNumber", required = true)
+    @field:Element(name = "vatNumber", required = false)
     var vatNumber: String = "",
 
-    @field:Element(name = "country", required = true)
+    @field:Element(name = "country", required = false)
     var country: String = "GR",
 
-    @field:Element(name = "branch", required = true)
+    @field:Element(name = "branch", required = false)
     var branch: Int = 0,
 
     @field:Element(name = "name", required = false)
@@ -95,16 +95,16 @@ data class PartyType(
  */
 @Root(name = "InvoiceHeaderType", strict = false)
 data class InvoiceHeaderType(
-    @field:Element(name = "series", required = true)
+    @field:Element(name = "series", required = false)
     var series: String = "0",
 
-    @field:Element(name = "aa", required = true)
+    @field:Element(name = "aa", required = false)
     var aa: String = "1",
 
-    @field:Element(name = "issueDate", required = true)
+    @field:Element(name = "issueDate", required = false)
     var issueDate: String = "", // Format: YYYY-MM-DD
 
-    @field:Element(name = "invoiceType", required = true)
+    @field:Element(name = "invoiceType", required = false)
     var invoiceType: String = "1.1", // 1.1, 1.2, 1.5, 8.4, 8.5, 8.6, 9.1, 9.2, 9.3, 10.1, 10.2, 11.1, 11.2, 11.4
 
     @field:Element(name = "vatPaymentSuspension", required = false)
@@ -146,7 +146,7 @@ data class InvoiceHeaderType(
  */
 @Root(name = "InvoiceRowType", strict = false)
 data class InvoiceRowType(
-    @field:Element(name = "lineNumber", required = true)
+    @field:Element(name = "lineNumber", required = false)
     var lineNumber: Int = 1,
 
     @field:Element(name = "recType", required = false)
@@ -173,13 +173,13 @@ data class InvoiceRowType(
     @field:Element(name = "otherMeasurementUnitTitle", required = false)
     var otherMeasurementUnitTitle: String? = null, // Mandatory if measurementUnit = 7
 
-    @field:Element(name = "netValue", required = true)
+    @field:Element(name = "netValue", required = false)
     var netValue: Double = 0.0,
 
-    @field:Element(name = "vatCategory", required = true)
+    @field:Element(name = "vatCategory", required = false)
     var vatCategory: Int = 1, // 1: 24%, 2: 13%, 3: 6%, 4: 17%, 5: 9%, 6: 4%, 7: 0%, 8: Without VAT, 9: 3%, 10: 4%
 
-    @field:Element(name = "vatAmount", required = true)
+    @field:Element(name = "vatAmount", required = false)
     var vatAmount: Double = 0.0,
 
     @field:Element(name = "vatExemptionCategory", required = false)
@@ -194,10 +194,10 @@ data class InvoiceRowType(
  */
 @Root(name = "InvoiceSummaryType", strict = false)
 data class InvoiceSummaryType(
-    @field:Element(name = "totalNetValue", required = true)
+    @field:Element(name = "totalNetValue", required = false)
     var totalNetValue: Double = 0.0,
 
-    @field:Element(name = "totalVatAmount", required = true)
+    @field:Element(name = "totalVatAmount", required = false)
     var totalVatAmount: Double = 0.0,
 
     @field:Element(name = "totalWithheldAmount", required = false)
@@ -215,7 +215,7 @@ data class InvoiceSummaryType(
     @field:Element(name = "totalDeductionsAmount", required = false)
     var totalDeductionsAmount: Double = 0.0,
 
-    @field:Element(name = "totalGrossValue", required = true)
+    @field:Element(name = "totalGrossValue", required = false)
     var totalGrossValue: Double = 0.0
 ) {
     /**
@@ -242,13 +242,13 @@ data class InvoiceSummaryType(
  */
 @Root(name = "TaxTotalsType", strict = false)
 data class TaxTotalsType(
-    @field:Element(name = "taxType", required = true)
+    @field:Element(name = "taxType", required = false)
     var taxType: Int = 1,
     @field:Element(name = "taxCategory", required = false)
     var taxCategory: Int? = null,
     @field:Element(name = "underlyingValue", required = false)
     var underlyingValue: Double? = null,
-    @field:Element(name = "taxAmount", required = true)
+    @field:Element(name = "taxAmount", required = false)
     var taxAmount: Double = 0.0
 )
 
@@ -257,9 +257,9 @@ data class TaxTotalsType(
  */
 @Root(name = "PaymentMethodDetailType", strict = false)
 data class PaymentMethodDetailType(
-    @field:Element(name = "type", required = true)
+    @field:Element(name = "type", required = false)
     var type: Int = 1, // 1: Cash, 3: Cheque, 5: POS/Card, 7: Account/Transfer
-    @field:Element(name = "amount", required = true)
+    @field:Element(name = "amount", required = false)
     var amount: Double = 0.0,
     @field:Element(name = "paymentMethodInfo", required = false)
     var paymentMethodInfo: String? = null,
@@ -297,25 +297,25 @@ data class AadeBookInvoiceType(
     @field:Element(name = "counterpart", required = false)
     var counterpart: PartyType? = null,
 
-    @field:Element(name = "invoiceHeader", required = true)
+    @field:Element(name = "invoiceHeader", required = false)
     var invoiceHeader: InvoiceHeaderType = InvoiceHeaderType(),
 
     @field:ElementList(name = "paymentMethods", inline = false, entry = "paymentMethodDetails", required = false)
     var paymentMethods: List<PaymentMethodDetailType>? = null,
 
-    @field:ElementList(inline = true, entry = "invoiceDetails", required = true)
-    var invoiceDetails: List<InvoiceRowType> = emptyList(),
+    @field:ElementList(inline = true, entry = "invoiceDetails", required = false)
+    var invoiceDetails: List<InvoiceRowType> = mutableListOf(),
 
     @field:ElementList(name = "taxesTotals", inline = false, entry = "taxes", required = false)
     var taxesTotals: List<TaxTotalsType>? = null,
 
-    @field:Element(name = "invoiceSummary", required = true)
+    @field:Element(name = "invoiceSummary", required = false)
     var invoiceSummary: InvoiceSummaryType = InvoiceSummaryType(),
 
     @field:Element(name = "qrCodeUrl", required = false)
     var qrCodeUrl: String? = null,
 
-    @field:Element(name = "otherCorrelatedEntities", required = false)
+    @field:ElementList(inline = true, entry = "otherCorrelatedEntities", required = false)
     var otherCorrelatedEntities: List<EntityType>? = null,
 
     @field:Element(name = "invoiceDeliveryStatus", required = false)
@@ -364,9 +364,6 @@ data class RequestedInvoicesDoc(
     @field:Element(name = "invoicesDoc", required = false)
     var invoicesDoc: InvoicesDocWrapper? = null,
 
-    @field:Element(name = "cancelledInvoicesDoc", required = false)
-    var cancelledInvoicesDoc: String? = null,
-
     @field:Element(name = "errors", required = false)
     var errors: Errors? = null
 )
@@ -412,7 +409,7 @@ data class Response(
     @field:Element(name = "qrUrl", required = false)
     var qrUrl: String? = null,
 
-    @field:Element(name = "statusCode", required = true)
+    @field:Element(name = "statusCode", required = false)
     var statusCode: String = "",
 
     @field:Element(name = "errors", required = false)
@@ -443,10 +440,10 @@ data class GetDeliveryStatusResponse(
 
 @Root(name = "DeliveryEventType", strict = false)
 data class DeliveryEvent(
-    @field:Element(name = "eventType", required = true)
+    @field:Element(name = "eventType", required = false)
     var eventType: String = "",
 
-    @field:Element(name = "eventTimestamp", required = true)
+    @field:Element(name = "eventTimestamp", required = false)
     var eventTimestamp: String = "",
 
     @field:Element(name = "actorVat", required = false)
@@ -464,10 +461,10 @@ data class Errors(
 
 @Root(name = "error", strict = false)
 data class ErrorItem(
-    @field:Element(name = "message", required = true)
+    @field:Element(name = "message", required = false)
     var message: String = "",
 
-    @field:Element(name = "code", required = true)
+    @field:Element(name = "code", required = false)
     var code: String = ""
 )
 
@@ -523,13 +520,13 @@ data class CancelDeliveryNoteRequest(
 
 @Root(name = "GenerateGroupQRCodeRequest", strict = false)
 data class GroupQRCodeRequest(
-    @field:Element(name = "qrUrls", required = true)
-    var qrUrls: QrUrlsWrapper = QrUrlsWrapper(emptyList())
+    @field:Element(name = "qrUrls", required = false)
+    var qrUrls: QrUrlsWrapper = QrUrlsWrapper(mutableListOf())
 )
 
 data class QrUrlsWrapper(
-    @field:ElementList(inline = true, entry = "qrUrl", required = true)
-    var qrUrlList: List<String> = emptyList()
+    @field:ElementList(inline = true, entry = "qrUrl", required = false)
+    var qrUrlList: List<String> = mutableListOf()
 )
 
 @Root(name = "RequestGroupQRDetailsResponse", strict = false)

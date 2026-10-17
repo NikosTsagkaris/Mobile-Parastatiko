@@ -112,34 +112,67 @@ fun MainDashboardScreen(navController: NavController, sessionManager: SessionMan
     val cameraPermissionState = rememberPermissionState(android.Manifest.permission.CAMERA)
 
     if (showScanner) {
+        androidx.activity.compose.BackHandler { showScanner = false }
         if (cameraPermissionState.status.isGranted) {
-            QRScannerScreen(onQrDetected = { qrUrl ->
-                showScanner = false
-                val sanitizedUrl = sanitizeQrUrl(qrUrl)
-                currentQrUrl = sanitizedUrl
+            QRScannerScreen(
+                onQrDetected = { qrUrl ->
+                    showScanner = false
+                    val sanitizedUrl = sanitizeQrUrl(qrUrl)
+                    currentQrUrl = sanitizedUrl
 
-                val docId = extractHash(sanitizedUrl) ?: "global"
-                currentMark = sessionManager.getDocumentMark(docId)
+                    val docId = extractHash(sanitizedUrl) ?: "global"
+                    currentMark = sessionManager.getDocumentMark(docId)
 
-                currentStatus = DeliveryStatus.Unknown
-                debugLog.setLength(0)
-                debugLog.append("Scanned. Start Recovery...\n")
+                    currentStatus = DeliveryStatus.Unknown
+                    debugLog.setLength(0)
+                    debugLog.append("Scanned. Start Recovery...\n")
 
-                val loggedInVat = sessionManager.getVat()?.trim() ?: ""
-                isIssuer = (sanitizedUrl.contains(loggedInVat) || android.net.Uri.decode(sanitizedUrl).contains(loggedInVat))
+                    val loggedInVat = sessionManager.getVat()?.trim() ?: ""
+                    isIssuer = (sanitizedUrl.contains(loggedInVat) || android.net.Uri.decode(sanitizedUrl).contains(loggedInVat))
 
-                statusMessage = "Ανάκτηση..."
-                fetchStatusAdaptiveWithFishing(sanitizedUrl, if (currentMark != 0L) currentMark else null, 1, debugLog, { statusMessage = it }, { isIssuer = it }) { statusStr, mark ->
-                    currentStatus = DeliveryStatus.fromApiString(statusStr)
-                    if (mark != null && mark != 0L) {
-                        currentMark = mark
-                        sessionManager.saveDocumentMark(docId, mark)
+                    statusMessage = "Ανάκτηση..."
+                    fetchStatusAdaptiveWithFishing(sanitizedUrl, if (currentMark != 0L) currentMark else null, 1, debugLog, { statusMessage = it }, { isIssuer = it }) { statusStr, mark ->
+                        currentStatus = DeliveryStatus.fromApiString(statusStr)
+                        if (mark != null && mark != 0L) {
+                            currentMark = mark
+                            sessionManager.saveDocumentMark(docId, mark)
+                        }
+                        rawDebug = debugLog.toString()
+                        statusMessage = "✅ ${currentStatus.text}"
                     }
-                    rawDebug = debugLog.toString()
-                    statusMessage = "✅ ${currentStatus.text}"
+                },
+                onClose = { showScanner = false }
+            )
+        } else {
+            LaunchedEffect(Unit) {
+                cameraPermissionState.launchPermissionRequest()
+            }
+            Column(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Απαιτείται άδεια πρόσβασης στην κάμερα για τη σάρωση του QR Code.",
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = { cameraPermissionState.launchPermissionRequest() },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonGreen, contentColor = Color.Black),
+                    modifier = Modifier.fillMaxWidth().height(50.dp)
+                ) {
+                    Text("ΠΑΡΑΧΩΡΗΣΗ ΑΔΕΙΑΣ ΚΑΜΕΡΑΣ", fontWeight = FontWeight.Bold)
                 }
-            })
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(onClick = { showScanner = false }) {
+                    Text("ΠΙΣΩ", color = Color.LightGray)
+                }
+            }
         }
+        return
     }
 
     Column(modifier = Modifier.padding(24.dp).fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -159,7 +192,12 @@ fun MainDashboardScreen(navController: NavController, sessionManager: SessionMan
         }
 
         Button(
-            onClick = { showScanner = true },
+            onClick = {
+                showScanner = true
+                if (!cameraPermissionState.status.isGranted) {
+                    cameraPermissionState.launchPermissionRequest()
+                }
+            },
             modifier = Modifier.fillMaxWidth().height(60.dp),
             colors = ButtonDefaults.buttonColors(containerColor = NeonGreen, contentColor = Color.Black)
         ) {
@@ -171,7 +209,7 @@ fun MainDashboardScreen(navController: NavController, sessionManager: SessionMan
         Button(
             onClick = { navController.navigate("delivery") },
             modifier = Modifier.fillMaxWidth().height(52.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF263238), contentColor = NeonGreen)
         ) {
             Text("ΕΚΔΟΣΗ ΨΗΦΙΑΚΟΥ ΔΕΛΤΙΟΥ", fontWeight = FontWeight.Bold)
         }
@@ -207,16 +245,17 @@ fun MainDashboardScreen(navController: NavController, sessionManager: SessionMan
                             statusMessage = "✅ ${currentStatus.text}"
                         }
                     },
-                    modifier = Modifier.weight(1f)
-                ) { Text("REFRESH") }
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonGreen, contentColor = Color.Black)
+                ) { Text("REFRESH", fontWeight = FontWeight.Bold) }
 
                 Spacer(Modifier.width(8.dp))
 
                 Button(
                     onClick = { showManualMarkDialog = true },
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
-                ) { Text("LINK MARK") }
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3A3A3A), contentColor = Color.White)
+                ) { Text("LINK MARK", fontWeight = FontWeight.Bold) }
             }
 
             TextButton(onClick = { showDebugDialog = true }) {
@@ -236,7 +275,7 @@ fun MainDashboardScreen(navController: NavController, sessionManager: SessionMan
                         if (currentStatus == DeliveryStatus.Registered) {
                             Text("ℹ️ Το παραστατικό έχει ήδη καταχωρηθεί στην ΑΑΔΕ.", color = NeonGreen, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(16.dp))
-                            ActionBtn("Ακύρωση Παραστατικού (Issuer)", containerColor = Color.Red.copy(alpha = 0.6f)) {
+                            ActionBtn("Ακύρωση Παραστατικού (Issuer)", containerColor = Color(0xFFD32F2F)) {
                                 executeCancelTransfer(currentQrUrl) { success, msg ->
                                     statusMessage = msg ?: "Result: $success"
                                     if (success) {
@@ -250,7 +289,7 @@ fun MainDashboardScreen(navController: NavController, sessionManager: SessionMan
                             Spacer(Modifier.height(8.dp))
                             ActionBtn("Τριγωνική Διακίνηση / Τρίτος", containerColor = Color(0xFF00897B)) { showTriangularDialog = true }
                         } else if (currentStatus == DeliveryStatus.Cancelled) {
-                            Text("❌ Το παραστατικό έχει ακυρωθεί.", color = Color.Red, fontSize = 14.sp)
+                            Text("❌ Το παραστατικό έχει ακυρωθεί.", color = Color(0xFFFF5252), fontSize = 14.sp)
                         } else {
                             Text("Κατάσταση: ${currentStatus.text}", color = NeonGreen)
                         }
@@ -264,7 +303,7 @@ fun MainDashboardScreen(navController: NavController, sessionManager: SessionMan
                         } else {
                             Text("Κατάσταση: ${currentStatus.text}", color = NeonGreen)
                             if (currentStatus != DeliveryStatus.Cancelled) {
-                                Text("Αναμονή για έναρξη διακίνησης από τον εκδότη...", color = Color.Gray, fontSize = 12.sp)
+                                Text("Αναμονή για έναρξη διακίνησης από τον εκδότη...", color = Color.LightGray, fontSize = 12.sp)
                             }
                         }
                     }
@@ -293,20 +332,26 @@ fun MainDashboardScreen(navController: NavController, sessionManager: SessionMan
                 sessionManager.logout()
                 navController.navigate("login") { popUpTo("main") { inclusive = true } }
             },
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.1f), contentColor = Color.Red),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF331515), contentColor = Color(0xFFFF6B6B)),
             modifier = Modifier.fillMaxWidth()
-        ) { Text("Αποσύνδεση") }
+        ) { Text("Αποσύνδεση", fontWeight = FontWeight.SemiBold) }
     }
 
     if (showDebugDialog) {
         Dialog(onDismissRequest = { showDebugDialog = false }) {
-            Card(modifier = Modifier.fillMaxWidth(0.9f).fillMaxHeight(0.8f)) {
+            Card(
+                modifier = Modifier.fillMaxWidth(0.9f).fillMaxHeight(0.8f),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface, contentColor = Color.White)
+            ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Debug Log", fontWeight = FontWeight.Bold)
+                    Text("Debug Log", fontWeight = FontWeight.Bold, color = NeonGreen)
                     Column(modifier = Modifier.verticalScroll(rememberScrollState()).weight(1f)) {
-                        Text(rawDebug, fontSize = 10.sp)
+                        Text(rawDebug, fontSize = 11.sp, color = Color.White)
                     }
-                    Button(onClick = { showDebugDialog = false }) { Text("CLOSE") }
+                    Button(
+                        onClick = { showDebugDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonGreen, contentColor = Color.Black)
+                    ) { Text("CLOSE", fontWeight = FontWeight.Bold) }
                 }
             }
         }
@@ -664,10 +709,18 @@ fun ManualMarkDialog(onDismiss: () -> Unit, onConfirm: (Long) -> Unit) {
     var m by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Manual Mark Linking") },
+        containerColor = DarkSurface,
+        titleContentColor = NeonGreen,
+        textContentColor = Color.White,
+        title = { Text("Manual Mark Linking", fontWeight = FontWeight.Bold) },
         text = { OutlinedTextField(value = m, onValueChange = { m = it }, label = { Text("Enter invoiceMark") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)) },
-        confirmButton = { Button(onClick = { m.toLongOrNull()?.let { onConfirm(it) } }) { Text("OK") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("CANCEL") } }
+        confirmButton = {
+            Button(
+                onClick = { m.toLongOrNull()?.let { onConfirm(it) } },
+                colors = ButtonDefaults.buttonColors(containerColor = NeonGreen, contentColor = Color.Black)
+            ) { Text("OK", fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("CANCEL", color = Color.LightGray) } }
     )
 }
 
@@ -677,23 +730,49 @@ fun RegisterTransferDialog(onDismiss: () -> Unit, onConfirm: (String, Int) -> Un
     var t by remember { mutableIntStateOf(1) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Register Transfer") },
+        containerColor = DarkSurface,
+        titleContentColor = NeonGreen,
+        textContentColor = Color.White,
+        title = { Text("Register Transfer", fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 OutlinedTextField(value = v, onValueChange = { v = it }, label = { Text("Vehicle Plate No") })
                 Spacer(Modifier.height(8.dp))
-                Text("Transport Type: $t")
+                Text("Transport Type: $t", color = Color.White)
                 Row {
-                    Button(onClick = { t = 1 }) { Text("1") }
+                    Button(
+                        onClick = { t = 1 },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (t == 1) NeonGreen else Color(0xFF3A3A3A),
+                            contentColor = if (t == 1) Color.Black else Color.White
+                        )
+                    ) { Text("1") }
                     Spacer(Modifier.width(4.dp))
-                    Button(onClick = { t = 5 }) { Text("5") }
+                    Button(
+                        onClick = { t = 5 },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (t == 5) NeonGreen else Color(0xFF3A3A3A),
+                            contentColor = if (t == 5) Color.Black else Color.White
+                        )
+                    ) { Text("5") }
                     Spacer(Modifier.width(4.dp))
-                    Button(onClick = { t = 7 }) { Text("7") }
+                    Button(
+                        onClick = { t = 7 },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (t == 7) NeonGreen else Color(0xFF3A3A3A),
+                            contentColor = if (t == 7) Color.Black else Color.White
+                        )
+                    ) { Text("7") }
                 }
             }
         },
-        confirmButton = { Button(onClick = { onConfirm(v, t) }) { Text("START") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("CANCEL") } }
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(v, t) },
+                colors = ButtonDefaults.buttonColors(containerColor = NeonGreen, contentColor = Color.Black)
+            ) { Text("START", fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("CANCEL", color = Color.LightGray) } }
     )
 }
 
@@ -702,25 +781,33 @@ fun ConfirmOutcomeDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var outcome by remember { mutableStateOf("FULL") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Confirm Delivery") },
+        containerColor = DarkSurface,
+        titleContentColor = NeonGreen,
+        textContentColor = Color.White,
+        title = { Text("Confirm Delivery", fontWeight = FontWeight.Bold) },
         text = {
             Column {
-                Row {
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     RadioButton(selected = outcome == "FULL", onClick = { outcome = "FULL" })
-                    Text("FULL (Πλήρης Παραλαβή)")
+                    Text("FULL (Πλήρης Παραλαβή)", color = Color.White)
                 }
-                Row {
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     RadioButton(selected = outcome == "PARTIAL", onClick = { outcome = "PARTIAL" })
-                    Text("PARTIAL (Μερική Παραλαβή)")
+                    Text("PARTIAL (Μερική Παραλαβή)", color = Color.White)
                 }
-                Row {
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     RadioButton(selected = outcome == "NONE", onClick = { outcome = "NONE" })
-                    Text("NONE (Άρνηση Παραλαβής)")
+                    Text("NONE (Άρνηση Παραλαβής)", color = Color.White)
                 }
             }
         },
-        confirmButton = { Button(onClick = { onConfirm(outcome) }) { Text("CONFIRM") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("CANCEL") } }
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(outcome) },
+                colors = ButtonDefaults.buttonColors(containerColor = NeonGreen, contentColor = Color.Black)
+            ) { Text("CONFIRM", fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("CANCEL", color = Color.LightGray) } }
     )
 }
 
@@ -729,10 +816,18 @@ fun RejectNoteDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var reason by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Reject Delivery Note") },
+        containerColor = DarkSurface,
+        titleContentColor = NeonGreen,
+        textContentColor = Color.White,
+        title = { Text("Reject Delivery Note", fontWeight = FontWeight.Bold) },
         text = { OutlinedTextField(value = reason, onValueChange = { reason = it }, label = { Text("Rejection Reason") }) },
-        confirmButton = { Button(onClick = { onConfirm(reason) }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) { Text("REJECT") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("CANCEL") } }
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(reason) },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F), contentColor = Color.White)
+            ) { Text("REJECT", fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("CANCEL", color = Color.LightGray) } }
     )
 }
 

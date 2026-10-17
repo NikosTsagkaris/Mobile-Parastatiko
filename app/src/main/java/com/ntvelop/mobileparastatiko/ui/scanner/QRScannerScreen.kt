@@ -37,7 +37,8 @@ import java.util.concurrent.Executors
 
 @Composable
 fun QRScannerScreen(
-    onQrDetected: (String) -> Unit = {}
+    onQrDetected: (String) -> Unit = {},
+    onClose: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -136,6 +137,19 @@ fun QRScannerScreen(
                 },
                 modifier = Modifier.fillMaxSize()
             )
+
+            Button(
+                onClick = onClose,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Black.copy(alpha = 0.75f),
+                    contentColor = Color.White
+                )
+            ) {
+                Text("✕ Κλείσιμο", fontWeight = FontWeight.Bold)
+            }
 
             Card(
                 modifier = Modifier
